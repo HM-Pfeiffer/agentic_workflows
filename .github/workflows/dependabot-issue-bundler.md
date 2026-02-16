@@ -3,6 +3,9 @@ description: Find all open Dependabot PRs and create bundle issues for each runt
 
 on: weekly
 
+# ✅ Use Claude (Anthropic) instead of Copilot
+engine: claude
+
 permissions:
   contents: read
   issues: read
