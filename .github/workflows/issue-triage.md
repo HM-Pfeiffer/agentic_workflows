@@ -14,7 +14,6 @@ description: |
 
 # ✅ Use Claude (Anthropic) instead of Copilot
 engine: claude
-model: claude-opus-4-6
 
 permissions: read-all
 
