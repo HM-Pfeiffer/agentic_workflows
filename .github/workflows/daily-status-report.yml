@@ -1,0 +1,145 @@
+name: Daily Status Report
+
+on:
+  schedule:
+    # 9:00 AM Eastern Time (14:00 UTC, accounting for EST; 13:00 UTC for EDT)
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      discussions: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Generate status report
+        id: generate_report
+        run: |
+          {
+            echo "## Daily Repository Status Report"
+            echo ""
+            echo "📅 **Report Date:** $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo ""
+            
+            echo "### 📊 Repository Statistics"
+            echo ""
+            echo "**Total Commits (Today):**"
+            git log --oneline --since="24 hours ago" | wc -l | xargs echo "  -"
+            
+            echo ""
+            echo "**Recent Contributors (Last 24h):**"
+            git log --since="24 hours ago" --pretty=format:"%an" | sort -u | sed 's/^/  - /'
+            
+            echo ""
+            echo "### 📝 Recent Activity"
+            echo ""
+            echo "**Latest 5 Commits:**"
+            git log --oneline -5 | sed 's/^/  - /'
+            
+            echo ""
+            echo "**Repository Size:**"
+            du -sh . | awk '{print "  - " $1}'
+            
+            echo ""
+            echo "### 🔍 GitHub Insights"
+            echo ""
+            echo "**Repository:** ${{ github.repository }}"
+            echo "**Branch:** ${{ github.ref_name }}"
+            echo "**Commit:** ${{ github.sha }}"
+            
+          } > /tmp/report.md
+          cat /tmp/report.md
+          echo "report=$(cat /tmp/report.md | base64 -w 0)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Discussion
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = Buffer.from('${{ steps.generate_report.outputs.report }}', 'base64').toString();
+            
+            // Create discussion in the first category found (General)
+            const { data } = await github.rest.discussions.createDiscussion({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Daily Status Report - ${new Date().toISOString().split('T')[0]}`,
+              body: report,
+              category_id: 'DIC_kwDOAQ...' // Replace with actual category ID
+            }).catch(async (err) => {
+              if (err.message.includes('category')) {
+                console.log('Note: Category ID not found. Skipping discussion creation.');
+              }
+            });
+
+      - name: Send to Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Daily Repository Status Report",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "📊 Daily Repository Status"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Date:* <!date^${{ github.event.head_commit.timestamp }}^{date_short_pretty} at {time}|${{ github.event.head_commit.timestamp }}>"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "View full report in <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|GitHub Actions>"
+                  }
+                }
+              ]
+            }
+
+      - name: Send Email Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.EMAIL_SERVER }}
+          server_port: ${{ secrets.EMAIL_PORT }}
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: 'Daily Status Report - ${{ github.repository }} (${{ github.run_date }})'
+          to: ${{ secrets.EMAIL_RECIPIENT }}
+          from: ${{ secrets.EMAIL_FROM }}
+          body: |
+            Daily Repository Status Report
+            ===============================
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Report Date: $(date -u +'%Y-%m-%d %H:%M UTC')
+            
+            For detailed information, visit:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          content_type: text/plain

@@ -4,6 +4,10 @@ on:
     - cron: '0 14 * * *'  # 9:00 AM Eastern Time (2:00 PM UTC)
   workflow_dispatch:
 
+engine:
+  id: claude
+  model: claude-opus-4-6
+
 permissions:
   contents: read
   pull-requests: read
