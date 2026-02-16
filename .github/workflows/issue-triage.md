@@ -6,10 +6,15 @@ description: |
   reproduction steps, and resource links. Helps maintainers quickly understand and
   prioritize incoming issues.
 
-on:
+"on":
   issues:
     types: [opened, reopened]
+  workflow_dispatch: {}
   reaction: eyes
+
+# ✅ Use Claude (Anthropic) instead of Copilot
+engine: claude
+model: claude-opus-4-6
 
 permissions: read-all
 
@@ -23,11 +28,12 @@ safe-outputs:
 tools:
   web-fetch:
   github:
-    toolsets: [issues]
+    # ✅ Add labels toolset so the agent can list labels without gh CLI
+    toolsets: [issues, labels]
     # If in a public repo, setting `lockdown: false` allows
     # reading issues, pull requests and comments from 3rd-parties
     # If in a private repo this has no particular effect.
-    lockdown: false    
+    lockdown: false
 
 timeout-minutes: 10
 source: githubnext/agentics/workflows/issue-triage.md@eb7950f37d350af6fa09d19827c4883e72947221
@@ -45,10 +51,10 @@ You're a triage assistant for GitHub issues. Your task is to analyze issue #${{ 
 
 3. Next, use the GitHub tools to gather additional context about the issue:
 
-   - Fetch the list of labels available in this repository. Use 'gh label list' bash command to fetch the labels. This will give you the labels you can use for triaging issues.
+   - Fetch the list of labels available in this repository using GitHub label tooling (do **not** use `gh` CLI).
    - Fetch any comments on the issue using the `get_issue_comments` tool
    - Find similar issues if needed using the `search_issues` tool
-   - List the issues to see other open issues in the repository using the `list_issues` tool
+   - List issues to see other open issues in the repository using the `list_issues` tool
 
 4. Analyze the issue content, considering:
 
@@ -59,32 +65,11 @@ You're a triage assistant for GitHub issues. Your task is to analyze issue #${{ 
    - User impact
    - Components affected
 
-5. Write notes, ideas, nudges, resource links, debugging strategies and/or reproduction steps for the team to consider relevant to the issue.
+5. Take action:
 
-6. Select appropriate labels from the available labels list provided above:
-
-   - Choose labels that accurately reflect the issue's nature
-   - Be specific but comprehensive
-   - Select priority labels if you can determine urgency (high-priority, med-priority, or low-priority)
-   - Consider platform labels (android, ios) if applicable
-   - Search for similar issues, and if you find similar issues consider using a "duplicate" label if appropriate. Only do so if the issue is a duplicate of another OPEN issue.
-   - Only select labels from the provided list above
-   - It's okay to not add any labels if none are clearly applicable
-
-7. Apply the selected labels:
-
-   - Use the `update_issue` tool to apply the labels to the issue
-   - DO NOT communicate directly with users
-   - If no labels are clearly applicable, do not apply any labels
-
-8. Add an issue comment to the issue with your analysis:
-   - Start with "🎯 Agentic Issue Triage"
-   - Provide a brief summary of the issue
-   - Mention any relevant details that might help the team understand the issue better
-   - Include any debugging strategies or reproduction steps if applicable
-   - Suggest resources or links that might be helpful for resolving the issue or learning skills related to the issue or the particular area of the codebase affected by it
-   - Mention any nudges or ideas that could help the team in addressing the issue
-   - If you have possible reproduction steps, include them in the comment
-   - If you have any debugging strategies, include them in the comment
-   - If appropriate break the issue down to sub-tasks and write a checklist of things to do.
-   - Use collapsed-by-default sections in the GitHub markdown to keep the comment tidy. Collapse all sections except the short main summary at the top.
+   - Add up to 5 appropriate labels (via safe outputs)
+   - Add a short triage comment summarizing:
+     - what you think the issue is
+     - what info is missing (if any)
+     - suggested next steps / reproduction hints
+     - links to similar issues if relevant
