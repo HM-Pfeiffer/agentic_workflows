@@ -4,9 +4,8 @@ on:
     - cron: '0 14 * * *'  # 9:00 AM Eastern Time (2:00 PM UTC)
   workflow_dispatch:
 
-engine:
-  id: claude
-  model: claude-opus-4-6
+# ✅ Use Claude (Anthropic) instead of Copilot
+engine: claude
 
 permissions:
   contents: read
