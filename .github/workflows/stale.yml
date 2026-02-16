@@ -1,0 +1,36 @@
+name: Cleanup stale issues
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # daily at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # Mark as stale after 14 days of no activity
+          days-before-stale: 14
+          # Close 7 days after being marked stale
+          days-before-close: 7
+
+          stale-issue-label: stale
+          stale-issue-message: >
+            This issue has been inactive and may no longer need attention.
+            If it’s still relevant, please comment to keep it open.
+
+          close-issue-message: >
+            Closing due to inactivity. Reopen or comment if this still needs support.
+
+          # Optional: don't touch issues that are explicitly kept alive
+          exempt-issue-labels: pinned,security,do-not-close
+
+          # Optional: ignore very new repos (set to false if you want PR cleanup too)
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+
